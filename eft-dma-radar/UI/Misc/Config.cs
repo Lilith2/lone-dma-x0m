@@ -234,16 +234,7 @@ public static class ConfigManager
 
     public static bool SaveCurrentConfigAsNewConfig(string configName)
     {
-        try
-        {
-            SaveConfigAsNewConfig(CurrentConfig, configName);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            LoneLogging.WriteLine($"[Config] Error saving new config {configName}: {ex}");
-            return false;
-        }
+        return SaveConfigAsNewConfig(CurrentConfig, configName);
     }
 
     public static bool SaveConfigAsNewConfig(Config config, string configName)
