@@ -1,5 +1,8 @@
 ﻿using eft_dma_shared.Common.Misc;
 using eft_dma_shared.Common.Misc.Pools;
+using eft_dma_shared.Common.Unity.LowLevel.Hooks;
+using HandyControl.Interactivity;
+using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -245,6 +248,21 @@ namespace eft_dma_shared.Common.Unity
             {
                 standaloneVertices?.Dispose();
             }
+        }
+        #endregion
+
+        #region Methods
+        public static ulong GetChild(ulong address, int index)
+        {
+            ulong Transform_CUSTOM_GetChild = NativeHook.UnityPlayerDll + 0x1167E0;
+            return NativeHook.Call(Transform_CUSTOM_GetChild, address, Unsafe.As<int, ulong>(ref index)) ?? 0;
+        }
+
+        public static long GetChildCount(ulong address)
+        {
+            ulong Transform_FindLastChildIndex = NativeHook.UnityPlayerDll + 0x679CF0;
+            var ret = NativeHook.Call(Transform_FindLastChildIndex, address);
+            return (long)ret.GetValueOrDefault();
         }
         #endregion
 

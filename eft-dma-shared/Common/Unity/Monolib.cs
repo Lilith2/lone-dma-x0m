@@ -5,6 +5,7 @@ using eft_dma_shared.Common.Unity.Collections;
 using eft_dma_shared.Common.Unity.LowLevel.Hooks;
 using eft_dma_shared.Common.Unity.LowLevel.Types;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -792,6 +793,48 @@ namespace eft_dma_shared.Common.Unity
 
                 addressOf = 0;
                 throw new Exception("Cannot find class " + className);
+            }
+
+            public static void PrintMethods(MonoClass mClass, string className = null)
+            {
+                try
+                {
+                    if (className == null)
+                        className = Memory.ReadString(mClass.pName, 64, false);
+
+                    int methodCount = mClass.GetNumMethods();
+                    LoneLogging.WriteLine($"[DEBUG] Methods of '{className}': {methodCount} methods found.");
+
+                    for (int i = 0; i < methodCount; i++)
+                    {
+                        var method = mClass.GetMethod(i);
+                        if (method == 0x0) continue;
+
+                        string methodName = method.Value.GetName();
+                        string unicodeEscaped = string.Join("", methodName.Select(c => $"\\u{(int)c:X4}"));
+                        ulong methodPtr = NativeMethods.CompileMethod(method);
+
+                        LoneLogging.WriteLine($"[DEBUG] Method[{i}]: {methodName} (Unicode: {unicodeEscaped}) at 0x{methodPtr:X}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LoneLogging.WriteLine($"[MONO] -> PrintMethods(): Exception: {ex}");
+                }
+            }
+
+            public static void PrintMethods(string assemblyName, string className)
+            {
+                try
+                {
+                    var mClass = Find(assemblyName, className, out _);
+                    PrintMethods(mClass, className);
+                }
+                catch (Exception ex)
+                {
+                    LoneLogging.WriteLine($"[MONO] -> PrintMethods(): Exception: {ex}");
+                    return;
+                }
             }
         }
 

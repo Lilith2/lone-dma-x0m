@@ -1,16 +1,17 @@
-using eft_dma_shared.Common.Features;
-using eft_dma_shared.Common.Unity.LowLevel.Hooks;
-using eft_dma_shared.Common.DMA.ScatterAPI;
-using eft_dma_shared.Common.Unity;
-using eft_dma_shared.Common.Misc;
 using eft_dma_radar;
+using eft_dma_radar.Tarkov.EFTPlayer;
 using eft_dma_radar.Tarkov.Features;
+using eft_dma_shared.Common.DMA.ScatterAPI;
+using eft_dma_shared.Common.Features;
+using eft_dma_shared.Common.Misc;
+using eft_dma_shared.Common.Unity;
+using eft_dma_shared.Common.Unity.LowLevel;
+using eft_dma_shared.Common.Unity.LowLevel.Hooks;
+using Reloaded.Assembler;
 using System;
 using System.Text;
-using eft_dma_radar.Tarkov.EFTPlayer;
-using Reloaded.Assembler;
-using eft_dma_shared.Common.Unity.LowLevel;
 using static eft_dma_shared.Common.Unity.MonoLib;
+using static eft_dma_shared.Common.Unity.UnityOffsets;
 
 namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
 {
@@ -49,9 +50,13 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
                 LoneLogging.WriteLine("StreamerMode: Applying patches...");
                 SpoofName();
                 PatchIsLocalStreamer();
-                //PatchDogtagNicknameP1();
-                //PatchDogtagNicknameP2();
+                //DebugDogtagMethods();
+                PatchDogtagNicknameP1();
+                PatchDogtagNicknameP2();
                 GloballySpoofLevel();
+
+                DisableExperiencePanels();
+                DisableStatsPanel();
                 DisableRightSide();
                 DisableNotifier();
 
@@ -66,6 +71,73 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
             return true;
         }
 
+        private void DisableExperiencePanels()
+        {
+            LoneLogging.WriteLine("Disabling Experience Panels...");
+
+            ulong playerModelViewExperiencePanel = NativeMethods.FindGameObjectS("Common UI/Common UI/InventoryScreen/Overall Panel/LeftSide/CharacterPanel/PlayerModelView/BottomField/Experience");
+            if (playerModelViewExperiencePanel != 0x0)
+            {
+                NativeMethods.GameObjectSetActive(playerModelViewExperiencePanel, false);
+                LoneLogging.WriteLine("PlayerModelView Experience Panel disabled!");
+                _rightSideDisabled = true;
+            }
+            else
+            {
+                LoneLogging.WriteLine("Failed to find PlayerModelView Experience Panel.");
+            }
+
+            ulong progressPanelCurrentText = NativeMethods.FindGameObjectS("Common UI/Common UI/InventoryScreen/SkillsAndMasteringPanel/TopPanel/Progress Panel/Current Text");
+            if (progressPanelCurrentText != 0x0)
+            {
+                NativeMethods.GameObjectSetActive(progressPanelCurrentText, false);
+                LoneLogging.WriteLine("Progress Panel Current Text disabled!");
+                _rightSideDisabled = true;
+            }
+            else
+            {
+                LoneLogging.WriteLine("Failed to find Progress Panel Current Text.");
+            }
+
+            ulong progressPanelRemainingText = NativeMethods.FindGameObjectS("Common UI/Common UI/InventoryScreen/SkillsAndMasteringPanel/TopPanel/Progress Panel/Remaining Text");
+            if (progressPanelRemainingText != 0x0)
+            {
+                NativeMethods.GameObjectSetActive(progressPanelRemainingText, false);
+                LoneLogging.WriteLine("Progress Panel Remaining Text disabled!");
+                _rightSideDisabled = true;
+            }
+            else
+            {
+                LoneLogging.WriteLine("Failed to find Progress Panel Remaining Text.");
+            }
+
+            ulong progressPanelBarExperienceText = NativeMethods.FindGameObjectS("Common UI/Common UI/InventoryScreen/SkillsAndMasteringPanel/TopPanel/Progress Panel/Bar/New Glow/Experience");
+            if (progressPanelBarExperienceText != 0x0)
+            {
+                NativeMethods.GameObjectSetActive(progressPanelBarExperienceText, false);
+                LoneLogging.WriteLine("Progress Panel Bar Experience Text disabled!");
+                _rightSideDisabled = true;
+            }
+            else
+            {
+                LoneLogging.WriteLine("Failed to find Progress Panel Bar Experience Text.");
+            }
+        }
+        private void DisableStatsPanel()
+        {
+            LoneLogging.WriteLine("Disabling Stats Panel...");
+            ulong statsPanel = NativeMethods.FindGameObjectS("Common UI/Common UI/InventoryScreen/Overall Panel/LeftSide/CharacterPanel/Level Panel/Stats");
+            if (statsPanel != 0x0)
+            {
+                NativeMethods.GameObjectSetActive(statsPanel, false);
+                LoneLogging.WriteLine("Stats Panel disabled!");
+                _rightSideDisabled = true;
+            }
+            else
+            {
+                LoneLogging.WriteLine("Failed to find Stats Panel.");
+            }
+        }
         private void DisableRightSide()
         {
             LoneLogging.WriteLine("Disabling RightSide Panel...");
@@ -138,7 +210,7 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
         private bool DogtagNicknamePatchedP1 = false;
         private static readonly byte[] DogtagNicknameP1Signature = new byte[]
         {
-            0x48, 0x8B, 0x40, 0x30
+            0x48, 0x8B, 0x46, 0x30
         };
 
         /// <summary>
@@ -152,9 +224,6 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
         private void PatchDogtagNicknameP1()
         {
             if (DogtagNicknamePatchedP1) return;
-
-            // Confirm method exists
-            //DebugDogtagMethods();
 
             var mClass = MonoClass.Find("Assembly-CSharp", "EFT.InventoryLogic.DogtagComponent", out ulong classAddress);
             if (classAddress == 0x0)
@@ -172,7 +241,7 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
             }
 
             // Re-check the method after compilation
-            var methodPtr = mClass.FindMethod("\uE000"); 
+            var methodPtr = mClass.FindMethod(@"\uE000");
             if (methodPtr == 0x0)
             {
                 LoneLogging.WriteLine($"[ERROR] Unable to find method '\uE000' in 'EFT.InventoryLogic.DogtagComponent' after compilation!");
@@ -183,7 +252,7 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
 
             // Patch the method
             SignatureInfo sigInfo = new(DogtagNicknameP1Signature, DogtagNicknameP1Patch, 200);
-            PatchMethodE("EFT.InventoryLogic.DogtagComponent", "\uE000", sigInfo, compileClass: true);
+            PatchMethodE("EFT.InventoryLogic.DogtagComponent", @"\uE000", sigInfo, compileClass: true);
 
             DogtagNicknamePatchedP1 = true;
         }
@@ -214,7 +283,7 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
         private void PatchDogtagNicknameP2()
         {
             if (DogtagNicknamePatchedP2) 
-            return;
+                return;
 
             SignatureInfo sigInfo = new(DogtagNicknameP2Signature, DogtagNicknameP2Signature.Patch(DogtagNicknameP2Patch), 0x1000, DogtagNicknameP2SignatureMask, DogtagNicknameP2SignatureMask, 0, DogtagNicknameP2Patch);
 
@@ -225,27 +294,8 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
 
         private void DebugDogtagMethods()
         {
-            var mClass = MonoClass.Find("Assembly-CSharp", "EFT.InventoryLogic.DogtagComponent", out ulong classAddress);
-            if (classAddress == 0x0)
-            {
-                LoneLogging.WriteLine($"[DEBUG] Class 'EFT.InventoryLogic.DogtagComponent' not found!");
-                return;
-            }
-
-            int methodCount = mClass.GetNumMethods();
-            LoneLogging.WriteLine($"[DEBUG] Methods of 'EFT.InventoryLogic.DogtagComponent': {methodCount} methods found.");
-
-            for (int i = 0; i < methodCount; i++)
-            {
-                var method = mClass.GetMethod(i);
-                if (method == 0x0) continue;
-
-                string methodName = method.Value.GetName();
-                string unicodeEscaped = string.Join("", methodName.Select(c => $"\\u{(int)c:X4}"));
-                ulong methodPtr = method;
-
-                LoneLogging.WriteLine($"[DEBUG] Method[{i}]: {methodName} (Unicode: {unicodeEscaped}) at 0x{methodPtr:X}");
-            }
+            MonoClass.PrintMethods("Assembly-CSharp", "EFT.InventoryLogic.DogtagComponent");
+            MonoClass.PrintMethods("Assembly-CSharp", "EFT.UI.DragAndDrop.GridItemView");
         }
 
         private bool LevelGloballySpoofed = false;

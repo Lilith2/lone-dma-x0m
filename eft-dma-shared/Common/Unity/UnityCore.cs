@@ -181,7 +181,24 @@ namespace eft_dma_shared.Common.Unity
                     return compClass;
             }
             throw new Exception("Component Not Found!");
-        }    
+        }
+
+        public static void PrintComponents(ulong gameObject)
+        {
+            // component list
+            var componentArr = Memory.ReadValue<ComponentArray>(gameObject + ComponentsOffset);
+            int size = componentArr.Size <= 0x1000 ?
+                (int)componentArr.Size : 0x1000;
+            using var compsBuf = SharedArray<ComponentArrayEntry>.Get(size);
+            Memory.ReadBuffer(componentArr.ArrayBase, compsBuf.Span);
+            foreach (var comp in compsBuf)
+            {
+                var compClass = Memory.ReadPtr(comp.Component + MonoBehaviour.ObjectClassOffset);
+                var name = Unity.ObjectClass.ReadName(compClass);
+                LoneLogging.WriteLine($"Component: {name} at 0x{compClass:X}");
+            }
+            throw new Exception("Component Not Found!");
+        }
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
