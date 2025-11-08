@@ -18,10 +18,6 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
     public sealed class StreamerMode : MemPatchFeature<StreamerMode>
     {
         private bool _set;
-        private bool _rightSideDisabled = false;
-        private bool _notifierDisabled = false;
-        private bool _nameSpoofed = false;
-        private bool _levelSpoofed = false;
 
         public override bool Enabled
         {
@@ -80,7 +76,6 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
             {
                 NativeMethods.GameObjectSetActive(playerModelViewExperiencePanel, false);
                 LoneLogging.WriteLine("PlayerModelView Experience Panel disabled!");
-                _rightSideDisabled = true;
             }
             else
             {
@@ -92,7 +87,6 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
             {
                 NativeMethods.GameObjectSetActive(progressPanelCurrentText, false);
                 LoneLogging.WriteLine("Progress Panel Current Text disabled!");
-                _rightSideDisabled = true;
             }
             else
             {
@@ -104,7 +98,6 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
             {
                 NativeMethods.GameObjectSetActive(progressPanelRemainingText, false);
                 LoneLogging.WriteLine("Progress Panel Remaining Text disabled!");
-                _rightSideDisabled = true;
             }
             else
             {
@@ -116,7 +109,6 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
             {
                 NativeMethods.GameObjectSetActive(progressPanelBarExperienceText, false);
                 LoneLogging.WriteLine("Progress Panel Bar Experience Text disabled!");
-                _rightSideDisabled = true;
             }
             else
             {
@@ -131,7 +123,6 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
             {
                 NativeMethods.GameObjectSetActive(statsPanel, false);
                 LoneLogging.WriteLine("Stats Panel disabled!");
-                _rightSideDisabled = true;
             }
             else
             {
@@ -146,7 +137,6 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
             {
                 NativeMethods.GameObjectSetActive(rightSide, false);
                 LoneLogging.WriteLine("RightSide Panel disabled!");
-                _rightSideDisabled = true;
             }
             else
             {
@@ -162,7 +152,6 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
             {
                 NativeMethods.GameObjectSetActive(notifier, false);
                 LoneLogging.WriteLine("Notifier disabled!");
-                _notifierDisabled = true;
             }
             else
             {
@@ -327,6 +316,17 @@ namespace eft_dma_radar.Tarkov.Features.MemoryWrites.Patches
             PatchMethodE("EFT.Profile+TraderInfo", "get_ProfileLevel", sigInfoB, compileClass: true);
 
             LevelGloballySpoofed = true;
+        }
+
+        public override void OnGameStop()
+        {
+            base.OnGameStop();
+
+            _set = false;
+            IsLocalStreamerMethodPatched = false;
+            DogtagNicknamePatchedP1 = false;
+            DogtagNicknamePatchedP2 = false;
+            LevelGloballySpoofed = false;
         }
     }
 }
