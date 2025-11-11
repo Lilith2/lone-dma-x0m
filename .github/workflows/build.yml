@@ -3,7 +3,7 @@ name: Build (arena + eft)
 on:
   push:
     branches: [ main, master ]
-    tags: [ "v*" ]          # <<< pushing a tag 'v1.2.3' will publish a Release
+    tags: [ "v*" ]          # pushing a tag v1.2.3 creates a Release with assets
   pull_request:
   workflow_dispatch:
 
@@ -63,33 +63,43 @@ jobs:
           -p:Version=${{ steps.vers.outputs.version }}
           --no-restore
 
-      # ©¤©¤©¤ Publish to fixed folders ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
-      - name: Publish arena (portable)
-        run: >
-          dotnet publish arena-dma-radar/arena-dma-radar.csproj
-          -c $env:CONFIGURATION
-          -p:Platform=$env:PLATFORM
-          -p:Version=${{ steps.vers.outputs.version }}
-          -p:PublishSingleFile=false
-          -o artifacts/arena
+      # ©¤©¤©¤ Locate build outputs reliably (with/without x64 segment) ©¤©¤©¤©¤©¤
+      - name: Locate outputs
+        id: out
+        shell: pwsh
+        run: |
+          function Find-OutDir {
+            param([string]$proj)
+            $c = "${{ env.CONFIGURATION }}"
+            $tfm = "net10.0-windows7.0"
+            $paths = @(
+              "$proj/bin/$c/$tfm",
+              "$proj/bin/${{ env.PLATFORM }}/$c/$tfm"
+            )
+            foreach ($p in $paths) {
+              if (Test-Path $p) { return (Resolve-Path $p).Path }
+            }
+            throw "Output not found for $proj"
+          }
 
-      - name: Publish eft (portable)
-        run: >
-          dotnet publish eft-dma-radar/eft-dma-radar.csproj
-          -c $env:CONFIGURATION
-          -p:Platform=$env:PLATFORM
-          -p:Version=${{ steps.vers.outputs.version }}
-          -p:PublishSingleFile=false
-          -o artifacts/eft
+          $arena = Find-OutDir "arena-dma-radar"
+          $eft   = Find-OutDir "eft-dma-radar"
 
-      # ©¤©¤©¤ Zip outputs ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
+          "arena=$arena" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "eft=$eft"     | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+          Write-Host "Arena out: $arena"
+          Write-Host "EFT   out: $eft"
+
+      # ©¤©¤©¤ Zip exactly what VS build produced (includes native DLLs) ©¤©¤©¤©¤©¤
       - name: Zip artifacts
         shell: pwsh
         run: |
-          Compress-Archive -Path artifacts/arena/* -DestinationPath artifacts/arena-${{ steps.vers.outputs.version }}.zip -Force
-          Compress-Archive -Path artifacts/eft/*   -DestinationPath artifacts/eft-${{ steps.vers.outputs.version }}.zip   -Force
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Compress-Archive -Path "${{ steps.out.outputs.arena }}/*" -DestinationPath "artifacts/arena-${{ steps.vers.outputs.version }}.zip" -Force
+          Compress-Archive -Path "${{ steps.out.outputs.eft }}/*"   -DestinationPath "artifacts/eft-${{ steps.vers.outputs.version }}.zip"   -Force
 
-      # ©¤©¤©¤ Always keep CI artifacts for downloads from the run page ©¤©¤©¤©¤©¤
+      # ©¤©¤©¤ Upload artifacts to the run page ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
       - name: Upload arena artifact
         uses: actions/upload-artifact@v4
         with:
@@ -104,13 +114,13 @@ jobs:
           path: artifacts/eft-${{ steps.vers.outputs.version }}.zip
           if-no-files-found: error
 
-      # ©¤©¤©¤ Create GitHub Release & attach zips (only on tags v*) ©¤©¤©¤©¤©¤©¤©¤©¤
+      # ©¤©¤©¤ Create a GitHub Release & attach zips (only on v* tags) ©¤©¤©¤©¤©¤©¤
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}                 # e.g. v1.2.3
-          tag_name: ${{ github.ref_name }}             # same tag
+          tag_name: ${{ github.ref_name }}
           generate_release_notes: true
           files: |
             artifacts/arena-${{ steps.vers.outputs.version }}.zip
