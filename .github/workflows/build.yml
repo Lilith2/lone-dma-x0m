@@ -10,10 +10,10 @@ on:
 jobs:
   build-win:
     runs-on: windows-latest
-
     env:
       CONFIGURATION: Release
       PLATFORM: x64
+      DOTNET_NOLOGO: true
 
     steps:
       - name: Checkout
@@ -21,17 +21,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set VersionPrefix
+      - name: Compute version (SemVer-safe)
         id: vers
         shell: pwsh
         run: |
-          # Prefer tag (v1.2.3), else short SHA, else run number
-          $tag = (git describe --tags --exact-match 2>$null) -replace '^v',''
-          if (-not $tag) { $tag = (git rev-parse --short HEAD) }
-          if (-not $tag) { $tag = "${{ github.run_number }}" }
-          "version=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $tag = (git describe --tags --exact-match 2>$null)
+          $sha = (git rev-parse --short HEAD)
+          if ($tag -and ($tag -match '^v\d+\.\d+\.\d+(-[0-9A-Za-z\.-]+)?$')) {
+            $ver = $tag.TrimStart('v')          # e.g. 1.2.3 or 1.2.3-rc.1
+          } else {
+            $ver = "0.0.0-ci.$sha"              # e.g. 0.0.0-ci.1ae4d38
+          }
+          "version=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Using Version: $ver"
 
-      - name: Setup .NET SDK
+      - name: Setup .NET SDK (stable)
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
@@ -48,28 +52,25 @@ jobs:
       - name: Restore
         run: dotnet restore eft-dma-radar.sln
 
-      - name: Build (Release | x64)
+      - name: Build solution (Release | x64)
         run: >
           dotnet build eft-dma-radar.sln
           -c $env:CONFIGURATION
           -p:Platform=$env:PLATFORM
-          -p:VersionPrefix=${{ steps.vers.outputs.version }}
+          -p:Version=${{ steps.vers.outputs.version }}
           --no-restore
 
-      # â”€â”€â”€ Artifacts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-      - name: Upload arena-dma-radar artifact
+      # ©¤©¤©¤ Artifacts ©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤©¤
+      - name: Upload arena-dma-radar
         uses: actions/upload-artifact@v4
         with:
           name: arena-dma-radar-${{ steps.vers.outputs.version }}
-          path: |
-            arena-dma-radar/bin/Release/net10.0-windows7.0/**
+          path: arena-dma-radar/bin/Release/net10.0-windows7.0/**
           if-no-files-found: error
 
-      - name: Upload eft-dma-radar artifact
+      - name: Upload eft-dma-radar
         uses: actions/upload-artifact@v4
         with:
           name: eft-dma-radar-${{ steps.vers.outputs.version }}
-          path: |
-            eft-dma-radar/bin/Release/net10.0-windows7.0/**
+          path: eft-dma-radar/bin/Release/net10.0-windows7.0/**
           if-no-files-found: error
