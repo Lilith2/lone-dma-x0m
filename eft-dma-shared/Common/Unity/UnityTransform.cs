@@ -251,21 +251,6 @@ namespace eft_dma_shared.Common.Unity
         }
         #endregion
 
-        #region Methods
-        public static ulong GetChild(ulong address, int index)
-        {
-            ulong Transform_CUSTOM_GetChild = NativeHook.UnityPlayerDll + 0x1167E0;
-            return NativeHook.Call(Transform_CUSTOM_GetChild, address, Unsafe.As<int, ulong>(ref index)) ?? 0;
-        }
-
-        public static long GetChildCount(ulong address)
-        {
-            ulong Transform_FindLastChildIndex = NativeHook.UnityPlayerDll + 0x679CF0;
-            var ret = NativeHook.Call(Transform_FindLastChildIndex, address);
-            return (long)ret.GetValueOrDefault();
-        }
-        #endregion
-
         #region Structures
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         private readonly ref struct TransformAccess
